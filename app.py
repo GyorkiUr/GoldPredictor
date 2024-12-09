@@ -74,7 +74,10 @@ if api_key:
 
                         # Prepare comparison DataFrame
                         actual_vs_pred = data.iloc[120:].copy()
+                        actual_vs_pred = actual_vs_pred.reset_index(drop=True)  # Reset index for alignment
                         actual_vs_pred['Predicted_Close'] = predictions
+                        actual_vs_pred['Prediction_Date'] = data['Date'].iloc[120:].values
+
                         st.write("### Actual vs Predicted", actual_vs_pred)
 
                         # Calculate metrics
@@ -90,8 +93,8 @@ if api_key:
                         # Plot actual vs predicted
                         st.write("### Plot: Actual vs Predicted")
                         plt.figure(figsize=(10, 6))
-                        plt.plot(actual_vs_pred['Date'], actual_vs_pred['Close'], label='Actual', marker='o')
-                        plt.plot(actual_vs_pred['Date'], actual_vs_pred['Predicted_Close'], label='Predicted', marker='x')
+                        plt.plot(actual_vs_pred['Prediction_Date'], actual_vs_pred['Close'], label='Actual', marker='o')
+                        plt.plot(actual_vs_pred['Prediction_Date'], actual_vs_pred['Predicted_Close'], label='Predicted', marker='x')
                         plt.legend()
                         plt.title("Actual vs Predicted Closing Prices")
                         plt.xlabel("Date")
