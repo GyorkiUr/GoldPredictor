@@ -60,12 +60,9 @@ if api_key:
                 # Prepare data for prediction
                 data['Scaled_Close'] = data['Close'] / data['Close'].max()
 
-                # Prepare sequences starting from the desired prediction start date
-                sequence_start = data[data['Date'] >= pd.to_datetime(start_date)].index[0] - 120  # Start index for sequences
+                # Prepare sequences for the entire fetched data
                 sequence = []
-                for i in range(sequence_start, len(data)):
-                    if i < 120:
-                        continue
+                for i in range(120, len(data)):
                     sequence.append(data['Scaled_Close'].iloc[i-120:i].values)
                 X = np.array(sequence).reshape(len(sequence), 120, 1)
 
@@ -77,23 +74,18 @@ if api_key:
                         predictions = model.predict(X)
                         predictions = predictions.flatten() * data['Close'].max()
 
-                        # Align predictions with actual dates
-                        actual_vs_pred = data.iloc[sequence_start + 120:].copy()
-                        actual_vs_pred = actual_vs_pred[actual_vs_pred['Date'] >= pd.to_datetime(start_date)]
+                        # Add predictions to data
+                        prediction_start_index = 120  # The first prediction corresponds to the 120th day
+                        data.loc[data.index[prediction_start_index:], 'Predicted_Close'] = predictions
 
-                        # Match lengths of predictions and actual data
-                        if len(predictions) > len(actual_vs_pred):
-                            predictions = predictions[:len(actual_vs_pred)]
-                        elif len(predictions) < len(actual_vs_pred):
-                            actual_vs_pred = actual_vs_pred.iloc[:len(predictions)]
+                        # Filter data for the selected date range
+                        filtered_data = data[(data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
 
-                        actual_vs_pred['Predicted_Close'] = predictions
+                        st.write("### Actual vs Predicted", filtered_data[['Date', 'Close', 'Predicted_Close']])
 
-                        st.write("### Actual vs Predicted", actual_vs_pred)
-
-                        # Calculate metrics
-                        mse = mean_squared_error(actual_vs_pred['Close'], actual_vs_pred['Predicted_Close'])
-                        mape = mean_absolute_percentage_error(actual_vs_pred['Close'], actual_vs_pred['Predicted_Close'])
+                        # Calculate metrics for the selected date range
+                        mse = mean_squared_error(filtered_data['Close'], filtered_data['Predicted_Close'])
+                        mape = mean_absolute_percentage_error(filtered_data['Close'], filtered_data['Predicted_Close'])
                         accuracy = 1 - mape
 
                         st.write("### Metrics")
@@ -104,8 +96,8 @@ if api_key:
                         # Plot actual vs predicted
                         st.write("### Plot: Actual vs Predicted")
                         plt.figure(figsize=(10, 6))
-                        plt.plot(actual_vs_pred['Date'], actual_vs_pred['Close'], label='Actual', marker='o')
-                        plt.plot(actual_vs_pred['Date'], actual_vs_pred['Predicted_Close'], label='Predicted', marker='x')
+                        plt.plot(filtered_data['Date'], filtered_data['Close'], label='Actual', marker='o')
+                        plt.plot(filtered_data['Date'], filtered_data['Predicted_Close'], label='Predicted', marker='x')
                         plt.legend()
                         plt.title("Actual vs Predicted Closing Prices")
                         plt.xlabel("Date")
