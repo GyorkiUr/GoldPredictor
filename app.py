@@ -62,10 +62,10 @@ if api_key:
 
                 # Prepare sequences for prediction
                 sequences = []
-                dates = []
+                prediction_dates = []
                 for i in range(120, len(data)):
                     sequences.append(data['Scaled_Close'].iloc[i-120:i].values)
-                    dates.append(data['Date'].iloc[i])  # Save corresponding date
+                    prediction_dates.append(data['Date'].iloc[i])  # Save corresponding date for predictions
 
                 X = np.array(sequences).reshape(len(sequences), 120, 1)
 
@@ -76,21 +76,24 @@ if api_key:
                         # Make predictions
                         predictions = model.predict(X).flatten() * data['Close'].max()
 
-                        # Create a DataFrame for actual vs predicted values
+                        # Create a DataFrame for predictions
                         pred_df = pd.DataFrame({
-                            'Date': dates,
-                            'Actual_Close': data['Close'].iloc[120:].values,
+                            'Date': prediction_dates,
                             'Predicted_Close': predictions
                         })
 
-                        # Filter the predictions to only include the selected date range
+                        # Filter predictions to include only the selected date range
                         pred_df = pred_df[(pred_df['Date'] >= pd.to_datetime(start_date)) & (pred_df['Date'] <= pd.to_datetime(end_date))]
 
-                        st.write("### Actual vs Predicted", pred_df)
+                        # Merge predictions with actual data
+                        actual_data = data[(data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
+                        actual_vs_pred = pd.merge(actual_data, pred_df, on='Date', how='left')
+
+                        st.write("### Actual vs Predicted", actual_vs_pred)
 
                         # Calculate metrics
-                        mse = mean_squared_error(pred_df['Actual_Close'], pred_df['Predicted_Close'])
-                        mape = mean_absolute_percentage_error(pred_df['Actual_Close'], pred_df['Predicted_Close'])
+                        mse = mean_squared_error(actual_vs_pred['Close'], actual_vs_pred['Predicted_Close'])
+                        mape = mean_absolute_percentage_error(actual_vs_pred['Close'], actual_vs_pred['Predicted_Close'])
                         accuracy = 1 - mape
 
                         st.write("### Metrics")
@@ -101,8 +104,8 @@ if api_key:
                         # Plot actual vs predicted
                         st.write("### Plot: Actual vs Predicted")
                         plt.figure(figsize=(10, 6))
-                        plt.plot(pred_df['Date'], pred_df['Actual_Close'], label='Actual', marker='o')
-                        plt.plot(pred_df['Date'], pred_df['Predicted_Close'], label='Predicted', marker='x')
+                        plt.plot(actual_vs_pred['Date'], actual_vs_pred['Close'], label='Actual', marker='o')
+                        plt.plot(actual_vs_pred['Date'], actual_vs_pred['Predicted_Close'], label='Predicted', marker='x')
                         plt.legend()
                         plt.title("Actual vs Predicted Closing Prices")
                         plt.xlabel("Date")
