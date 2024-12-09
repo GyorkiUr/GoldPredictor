@@ -11,7 +11,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 model_path = "lstm_gold_price_model.keras"
 model = load_model(model_path)
 
-# Define a function to fetch data from Polygon.io
+# Function to fetch data from Polygon.io
 def fetch_data(api_key, start_date, end_date):
     url = f"https://api.polygon.io/v2/aggs/ticker/C:XAUUSD/range/1/day/{start_date}/{end_date}?adjusted=false&sort=asc&apiKey={api_key}"
     response = requests.get(url)
@@ -45,7 +45,7 @@ if api_key:
         st.error("Start Date must be before End Date.")
     elif st.button("Fetch and Predict"):
         # Adjust start date for 120-day window
-        days_needed = 120  # Minimum days for the prediction window
+        days_needed = 120
         adjusted_start_date = start_date - timedelta(days=days_needed)
 
         st.info(f"Fetching data from {adjusted_start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')} to ensure sufficient data for predictions.")
@@ -60,32 +60,37 @@ if api_key:
                 # Prepare data for prediction
                 data['Scaled_Close'] = data['Close'] / data['Close'].max()
 
-                # Prepare sequences for the entire fetched data
-                sequence = []
+                # Prepare sequences for prediction
+                sequences = []
+                dates = []
                 for i in range(120, len(data)):
-                    sequence.append(data['Scaled_Close'].iloc[i-120:i].values)
-                X = np.array(sequence).reshape(len(sequence), 120, 1)
+                    sequences.append(data['Scaled_Close'].iloc[i-120:i].values)
+                    dates.append(data['Date'].iloc[i])  # Save corresponding date
+
+                X = np.array(sequences).reshape(len(sequences), 120, 1)
 
                 st.write(f"Input shape for prediction: {X.shape}")
 
                 if X.size > 0:
                     try:
                         # Make predictions
-                        predictions = model.predict(X)
-                        predictions = predictions.flatten() * data['Close'].max()
+                        predictions = model.predict(X).flatten() * data['Close'].max()
 
-                        # Add predictions to data
-                        prediction_start_index = 120  # The first prediction corresponds to the 120th day
-                        data.loc[data.index[prediction_start_index:], 'Predicted_Close'] = predictions
+                        # Create a DataFrame for actual vs predicted values
+                        pred_df = pd.DataFrame({
+                            'Date': dates,
+                            'Actual_Close': data['Close'].iloc[120:].values,
+                            'Predicted_Close': predictions
+                        })
 
-                        # Filter data for the selected date range
-                        filtered_data = data[(data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
+                        # Filter the predictions to only include the selected date range
+                        pred_df = pred_df[(pred_df['Date'] >= pd.to_datetime(start_date)) & (pred_df['Date'] <= pd.to_datetime(end_date))]
 
-                        st.write("### Actual vs Predicted", filtered_data[['Date', 'Close', 'Predicted_Close']])
+                        st.write("### Actual vs Predicted", pred_df)
 
-                        # Calculate metrics for the selected date range
-                        mse = mean_squared_error(filtered_data['Close'], filtered_data['Predicted_Close'])
-                        mape = mean_absolute_percentage_error(filtered_data['Close'], filtered_data['Predicted_Close'])
+                        # Calculate metrics
+                        mse = mean_squared_error(pred_df['Actual_Close'], pred_df['Predicted_Close'])
+                        mape = mean_absolute_percentage_error(pred_df['Actual_Close'], pred_df['Predicted_Close'])
                         accuracy = 1 - mape
 
                         st.write("### Metrics")
@@ -96,8 +101,8 @@ if api_key:
                         # Plot actual vs predicted
                         st.write("### Plot: Actual vs Predicted")
                         plt.figure(figsize=(10, 6))
-                        plt.plot(filtered_data['Date'], filtered_data['Close'], label='Actual', marker='o')
-                        plt.plot(filtered_data['Date'], filtered_data['Predicted_Close'], label='Predicted', marker='x')
+                        plt.plot(pred_df['Date'], pred_df['Actual_Close'], label='Actual', marker='o')
+                        plt.plot(pred_df['Date'], pred_df['Predicted_Close'], label='Predicted', marker='x')
                         plt.legend()
                         plt.title("Actual vs Predicted Closing Prices")
                         plt.xlabel("Date")
