@@ -80,7 +80,14 @@ if api_key:
                         # Align predictions with actual dates
                         actual_vs_pred = data.iloc[sequence_start + 120:].copy()
                         actual_vs_pred = actual_vs_pred[actual_vs_pred['Date'] >= pd.to_datetime(start_date)]
-                        actual_vs_pred['Predicted_Close'] = predictions[:len(actual_vs_pred)]
+
+                        # Match lengths of predictions and actual data
+                        if len(predictions) > len(actual_vs_pred):
+                            predictions = predictions[:len(actual_vs_pred)]
+                        elif len(predictions) < len(actual_vs_pred):
+                            actual_vs_pred = actual_vs_pred.iloc[:len(predictions)]
+
+                        actual_vs_pred['Predicted_Close'] = predictions
 
                         st.write("### Actual vs Predicted", actual_vs_pred)
 
