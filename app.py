@@ -59,8 +59,13 @@ if api_key:
             else:
                 # Prepare data for prediction
                 data['Scaled_Close'] = data['Close'] / data['Close'].max()
+
+                # Prepare sequences starting from the desired prediction start date
+                sequence_start = data[data['Date'] >= start_date].index[0] - 120  # Start index for sequences
                 sequence = []
-                for i in range(120, len(data)):
+                for i in range(sequence_start, len(data)):
+                    if i < 120:
+                        continue
                     sequence.append(data['Scaled_Close'].iloc[i-120:i].values)
                 X = np.array(sequence).reshape(len(sequence), 120, 1)
 
@@ -72,11 +77,13 @@ if api_key:
                         predictions = model.predict(X)
                         predictions = predictions.flatten() * data['Close'].max()
 
-                        # Prepare comparison DataFrame
-                        actual_vs_pred = data.iloc[120:].copy()
-                        actual_vs_pred = actual_vs_pred.reset_index(drop=True)  # Reset index for alignment
+                        # Align predictions with actual dates
+                        pred_start_date = data['Date'].iloc[sequence_start + 120]
+                        actual_vs_pred = data.iloc[sequence_start + 120:].copy()
                         actual_vs_pred['Predicted_Close'] = predictions
-                        actual_vs_pred['Prediction_Date'] = data['Date'].iloc[120:].values
+                        
+                        # Filter predictions to align with the desired prediction start date
+                        actual_vs_pred = actual_vs_pred[actual_vs_pred['Date'] >= start_date]
 
                         st.write("### Actual vs Predicted", actual_vs_pred)
 
@@ -93,8 +100,8 @@ if api_key:
                         # Plot actual vs predicted
                         st.write("### Plot: Actual vs Predicted")
                         plt.figure(figsize=(10, 6))
-                        plt.plot(actual_vs_pred['Prediction_Date'], actual_vs_pred['Close'], label='Actual', marker='o')
-                        plt.plot(actual_vs_pred['Prediction_Date'], actual_vs_pred['Predicted_Close'], label='Predicted', marker='x')
+                        plt.plot(actual_vs_pred['Date'], actual_vs_pred['Close'], label='Actual', marker='o')
+                        plt.plot(actual_vs_pred['Date'], actual_vs_pred['Predicted_Close'], label='Predicted', marker='x')
                         plt.legend()
                         plt.title("Actual vs Predicted Closing Prices")
                         plt.xlabel("Date")
