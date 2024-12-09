@@ -61,7 +61,7 @@ if api_key:
                 data['Scaled_Close'] = data['Close'] / data['Close'].max()
 
                 # Prepare sequences starting from the desired prediction start date
-                sequence_start = data[data['Date'] >= start_date].index[0] - 120  # Start index for sequences
+                sequence_start = data[data['Date'] >= pd.to_datetime(start_date)].index[0] - 120  # Start index for sequences
                 sequence = []
                 for i in range(sequence_start, len(data)):
                     if i < 120:
@@ -78,12 +78,9 @@ if api_key:
                         predictions = predictions.flatten() * data['Close'].max()
 
                         # Align predictions with actual dates
-                        pred_start_date = data['Date'].iloc[sequence_start + 120]
                         actual_vs_pred = data.iloc[sequence_start + 120:].copy()
-                        actual_vs_pred['Predicted_Close'] = predictions
-                        
-                        # Filter predictions to align with the desired prediction start date
-                        actual_vs_pred = actual_vs_pred[actual_vs_pred['Date'] >= start_date]
+                        actual_vs_pred = actual_vs_pred[actual_vs_pred['Date'] >= pd.to_datetime(start_date)]
+                        actual_vs_pred['Predicted_Close'] = predictions[:len(actual_vs_pred)]
 
                         st.write("### Actual vs Predicted", actual_vs_pred)
 
