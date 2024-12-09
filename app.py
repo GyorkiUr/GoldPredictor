@@ -44,9 +44,9 @@ if api_key:
     if start_date >= end_date:
         st.error("Start Date must be before End Date.")
     elif st.button("Fetch and Predict"):
-        # Adjust start date for 120-day window
-        days_needed = 120
-        adjusted_start_date = start_date - timedelta(days=days_needed)
+        # Adjust start date for 140-day window (120 + 20 days buffer)
+        extended_days_needed = 140
+        adjusted_start_date = start_date - timedelta(days=extended_days_needed)
 
         st.info(f"Fetching data from {adjusted_start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')} to ensure sufficient data for predictions.")
         data = fetch_data(api_key, adjusted_start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
@@ -54,7 +54,7 @@ if api_key:
         if data is not None:
             st.write(f"Fetched {len(data)} days of data.")
 
-            if len(data) < 120:
+            if len(data) < 140:
                 st.error("Not enough data even after adjusting the start date. Please choose a longer date range.")
             else:
                 # Prepare data for prediction
@@ -63,7 +63,7 @@ if api_key:
                 # Prepare sequences for prediction
                 sequences = []
                 prediction_dates = []
-                for i in range(120, len(data)):
+                for i in range(120, len(data)):  # Start from 120 to ensure valid sequences
                     sequences.append(data['Scaled_Close'].iloc[i-120:i].values)
                     prediction_dates.append(data['Date'].iloc[i])  # Save corresponding date for predictions
 
@@ -89,6 +89,7 @@ if api_key:
                         actual_data = data[(data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
                         actual_vs_pred = pd.merge(actual_data, pred_df, on='Date', how='left')
 
+                        # Show predictions without excluding any rows
                         st.write("### Actual vs Predicted", actual_vs_pred)
 
                         # Calculate metrics
